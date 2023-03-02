@@ -15,7 +15,9 @@ DCG-MAP-Elites builds upon PGA-MAP-Elites algorithm and introduces two contribut
 1. The Policy Gradient variation operator is enhanced with a descriptor-conditioned critic that provides gradients depending on a targeted descriptor.
 2. Concurrently to the critic's training, the knowledge of the archive is distilled in the descriptor-conditioned actor at no additional cost. This single versatile policy can execute the entire range of behaviors contained in the archive.
 
-image here
+<p align="center">
+<img width="800" alt="teaser" src="https://user-images.githubusercontent.com/49123210/222401712-fa657210-ce2b-4155-a9cb-5189e281b039.svg">
+</p>
 
 ## Installation
 
