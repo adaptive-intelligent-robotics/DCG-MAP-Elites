@@ -24,7 +24,7 @@ From: airl_lab/default/airl_env:qdax_f57720d0
     cd /project/
 
     if [ $SINGULARITY_SANDBOX -eq 0 ]; then
-        git clone https://gitlab.doc.ic.ac.uk/AIRL/research_projects/maxence_faldor/dcg-map-elites.git .
+        git clone https://github.com/adaptive-intelligent-robotics/DCG-MAP-Elites.git .
         git checkout $SINGULARITY_COMMIT
     fi
 
