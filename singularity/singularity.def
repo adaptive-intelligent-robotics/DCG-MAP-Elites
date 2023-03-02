@@ -1,0 +1,85 @@
+Bootstrap: library
+From: airl_lab/default/airl_env:qdax_f57720d0
+
+%labels
+    Author m.faldor22@imperial.ac.uk
+
+%help
+    DCG-MAP-Elites algorithm from the paper ``MAP-Elites with Descriptor-Conditioned Gradients and Archive Distillation''.
+
+%files
+    requirements.txt /
+
+%post
+    # Update
+    apt-get update -y
+    pip3 install --upgrade pip
+
+    # Install
+    pip3 install -r /requirements.txt
+    pip3 install jaxlib==0.3.15+cuda11_cudnn82 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+    # Create working directory
+    mkdir /project/
+    cd /project/
+
+    if [ $SINGULARITY_SANDBOX -eq 0 ]; then
+        git clone https://gitlab.doc.ic.ac.uk/AIRL/research_projects/maxence_faldor/dcg-map-elites.git .
+        git checkout $SINGULARITY_COMMIT
+    fi
+
+%apprun me
+    # Enter project
+    cd /project/
+
+    # Run main
+    python3 main_me.py "$@"
+
+%apprun me_es
+    # Enter project
+    cd /project/
+
+    # Run main
+    python3 main_me_es.py "$@"
+
+%apprun pga_me
+    # Enter project
+    cd /project/
+
+    # Run main
+    python3 main_pga_me.py "$@"
+
+%apprun qd_pg
+    # Enter project
+    cd /project/
+
+    # Run main
+    python3 main_qd_pg.py "$@"
+
+%apprun dcg_me
+    # Enter project
+    cd /project/
+
+    # Run main
+    python3 main_dcg_me.py "$@"
+
+%apprun ablation_1
+    # Enter project
+    cd /project/
+
+    # Run main
+    python3 main_ablation_1.py "$@"
+
+%apprun ablation_2
+    # Enter project
+    cd /project/
+
+    # Run main
+    python3 main_ablation_2.py "$@"
+
+%apprun ablation_3
+    # Enter project
+    cd /project/
+
+    # Run main
+    python3 main_ablation_3.py "$@"

@@ -1,0 +1,45 @@
+hydra:
+  run:
+    dir: ./outputs/${env_name}/${hydra.job.name}/${now:%Y-%m-%d_%H%M%S_%f}
+
+# QD
+algo_name: "DCG-MAP-Elites"
+seed: 42
+num_iterations: 100
+
+# Environment
+env_name: "ant_omni"
+episode_length: 250
+env_batch_size: 256
+
+# Archive
+num_init_cvt_samples: 50000
+num_centroids: 1024
+min_bd: -30.
+max_bd: 30.
+policy_hidden_layer_sizes: [128, 128]
+
+# GA emitter
+iso_sigma: 0.005
+line_sigma: 0.05
+
+# PG emitter
+proportion_mutation_ga: 0.5
+critic_hidden_layer_size: [256, 256]
+num_critic_training_steps: 300
+num_pg_training_steps: 150
+transitions_batch_size: 100
+replay_buffer_size: 1_000_000
+discount: 0.99
+reward_scaling: 1.0
+critic_learning_rate: 3e-4
+greedy_learning_rate: 3e-4
+policy_learning_rate: 5e-3
+noise_clip: 0.5
+policy_noise: 0.2
+soft_tau_update: 0.005
+policy_delay: 2
+
+# DCG-MAP-Elites
+lengthscale: 0.008
+descriptor_sigma: 0.0004
