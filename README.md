@@ -1,6 +1,6 @@
 # Descriptor-Conditioned Gradients MAP-Elites
 
-Repository for [MAP-Elites with Descriptor-Conditioned Gradients and Archive Distillation into a Single Policy](https://arxiv.org/abs/) paper, introducing the _Descriptor-Conditioned Gradients MAP-Elites_ algorithm (DCG-MAP-Elites). This builds on top of the [QDax](https://github.com/adaptive-intelligent-robotics/QDax) framework and includes four baselines and three ablation studies:
+Repository for [MAP-Elites with Descriptor-Conditioned Gradients and Archive Distillation into a Single Policy](https://arxiv.org/abs/2303.03832) paper, introducing the _Descriptor-Conditioned Gradients MAP-Elites_ algorithm (DCG-MAP-Elites). This builds on top of the [QDax](https://github.com/adaptive-intelligent-robotics/QDax) framework and includes four baselines and three ablation studies:
 
 - [MAP-Elites](https://arxiv.org/abs/1610.05729)
 - [MAP-Elites ES](https://arxiv.org/abs/2003.01825)
@@ -12,7 +12,7 @@ Repository for [MAP-Elites with Descriptor-Conditioned Gradients and Archive Dis
 
 DCG-MAP-Elites builds upon PGA-MAP-Elites algorithm and introduces two contributions:
 
-1. The Policy Gradient variation operator is enhanced with a descriptor-conditioned critic that provides gradients depending on a targeted descriptor.
+1. The Policy Gradient variation operator is enhanced with a descriptor-conditioned critic that provides gradients depending on a target descriptor.
 2. Concurrently to the critic's training, the knowledge of the archive is distilled in the descriptor-conditioned actor at no additional cost. This single versatile policy can execute the entire range of behaviors contained in the archive.
 
 <p align="center">
