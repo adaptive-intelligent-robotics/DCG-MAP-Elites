@@ -23,7 +23,7 @@ DCG-MAP-Elites builds upon PGA-MAP-Elites algorithm and introduces two contribut
 
 To run this code, you need to clone the repository and install the required libraries with:
 ```bash
-git clone ...
+git clone https://github.com/adaptive-intelligent-robotics/DCG-MAP-Elites
 pip install -r requirements.txt
 ```
 
