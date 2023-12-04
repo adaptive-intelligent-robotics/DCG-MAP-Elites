@@ -1,0 +1,8 @@
+name: ant_omni
+version: v1
+backend: spring
+episode_length: 250
+min_bd: -30.
+max_bd: 30.
+use_contact_forces: False
+exclude_current_positions_from_observation: False

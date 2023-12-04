@@ -1,35 +1,19 @@
 hydra:
+  job:
+    chdir: True
   run:
-    dir: ./outputs/${env_name}/${hydra.job.name}/${now:%Y-%m-%d_%H%M%S_%f}
+    dir: ./output/${env.name}/${algo.name}/${now:%Y-%m-%d_%H%M%S_%f}
 
-# QD
-algo_name: "MAP-Elites ES"
+defaults:
+  - _self_
+  - env: ant_omni
+  - algo: me_es
+
 seed: 42
 num_iterations: 100
-
-# Environment
-env_name: "ant_omni"
-episode_length: 250
-env_batch_size: 1
+batch_size: 1
 
 # Archive
 num_init_cvt_samples: 50000
 num_centroids: 1024
-min_bd: -30.
-max_bd: 30.
 policy_hidden_layer_sizes: [128, 128]
-
-# ES emitter
-sample_number: 1000
-sample_sigma: 0.02
-num_optimizer_steps: 10
-learning_rate: 0.01
-l2_coefficient: 0.02
-novelty_nearest_neighbors: 10
-last_updated_size: 5
-exploit_num_cell_sample: 2
-explore_num_cell_sample: 5
-adam_optimizer: True
-sample_mirror: True
-sample_rank_norm: True
-use_explore: True

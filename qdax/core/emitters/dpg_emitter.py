@@ -7,6 +7,7 @@ from typing import Any, Callable, Optional, Tuple
 
 import flax.linen as nn
 import jax
+import jax.numpy as jnp
 import optax
 
 from qdax.core.containers.archive import Archive
@@ -52,6 +53,7 @@ class DiversityPGEmitterState(QualityPGEmitterState):
 class DiversityPGEmitter(QualityPGEmitter):
     """
     A diversity policy gradient emitter used to implement QDPG algorithm.
+
     Please not that the inheritence between DiversityPGEmitter and QualityPGEmitter
     could be increased with changes in the way transitions samples are handled in
     the QualityPGEmitter. But this would modify the computation/memory strategy of the
@@ -79,9 +81,11 @@ class DiversityPGEmitter(QualityPGEmitter):
         self, init_genotypes: Genotype, random_key: RNGKey
     ) -> Tuple[DiversityPGEmitterState, RNGKey]:
         """Initializes the emitter state.
+
         Args:
             init_genotypes: The initial population.
             random_key: A random key.
+
         Returns:
             The initial state of the PGAMEEmitter, a new random key.
         """
@@ -121,10 +125,12 @@ class DiversityPGEmitter(QualityPGEmitter):
     ) -> DiversityPGEmitterState:
         """This function gives an opportunity to update the emitter state
         after the genotypes have been scored.
+
         Here it is used to fill the Replay Buffer with the transitions
         from the scoring of the genotypes, and then the training of the
         critic/actor happens. Hence the params of critic/actor are updated,
         as well as their optimizer states.
+
         Args:
             emitter_state: current emitter state.
             repertoire: the current genotypes repertoire
@@ -133,6 +139,7 @@ class DiversityPGEmitter(QualityPGEmitter):
             descriptors: unused here - but compulsory in the signature.
             extra_scores: extra information coming from the scoring function,
                 this contains the transitions added to the replay buffer.
+
         Returns:
             New emitter state where the replay buffer has been filled with
             the new experienced transitions.
@@ -145,7 +152,11 @@ class DiversityPGEmitter(QualityPGEmitter):
         replay_buffer = emitter_state.replay_buffer.insert(transitions)
         emitter_state = emitter_state.replace(replay_buffer=replay_buffer)
 
-        archive = emitter_state.archive.insert(transitions.state_desc)
+        num_state_desc = 64_000 // transitions.state_desc.shape[1]
+        random_key, subkey = jax.random.split(emitter_state.random_key)
+        state_desc = jax.random.choice(subkey, transitions.state_desc, shape=(num_state_desc,))
+        archive = emitter_state.archive.insert(state_desc)
+        emitter_state = emitter_state.replace(random_key=random_key)
 
         def scan_train_critics(
             carry: DiversityPGEmitterState, transitions: QDTransition
@@ -179,6 +190,7 @@ class DiversityPGEmitter(QualityPGEmitter):
         )
 
         # Train critics and greedy actor
+        emitter_state = emitter_state.replace(random_key=random_key)
         emitter_state, _ = jax.lax.scan(
             scan_train_critics,
             emitter_state,
@@ -197,9 +209,12 @@ class DiversityPGEmitter(QualityPGEmitter):
         """Apply one gradient step to critics and to the greedy actor
         (contained in carry in training_state), then soft update target critics
         and target greedy actor.
+
         Those updates are very similar to those made in TD3.
+
         Args:
             emitter_state: actual emitter state
+
         Returns:
             New emitter state where the critic and the greedy actor have been
             updated. Optimizer states have also been updated in the process.
@@ -260,11 +275,13 @@ class DiversityPGEmitter(QualityPGEmitter):
         emitter_state: DiversityPGEmitterState,
     ) -> Genotype:
         """Apply pg mutation to a policy via multiple steps of gradient descent.
+
         Args:
             policy_params: a policy, supposed to be a differentiable neural
                 network.
             emitter_state: the current state of the emitter, containing among others,
                 the replay buffer, the critic.
+
         Returns:
             the updated params of the neural network.
         """
@@ -336,10 +353,12 @@ class DiversityPGEmitter(QualityPGEmitter):
         transitions: QDTransition,
     ) -> Tuple[DiversityPGEmitterState, Params, optax.OptState]:
         """Apply one gradient step to a policy (called policies_params).
+
         Args:
             emitter_state: current state of the emitter.
             policy_params: parameters corresponding to the weights and bias of
                 the neural network that defines the policy.
+
         Returns:
             The new emitter state and new params of the NN.
         """

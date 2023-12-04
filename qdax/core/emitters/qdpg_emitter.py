@@ -1,5 +1,6 @@
 """Implementation of an updated version of the algorithm QDPG presented in the
 paper https://arxiv.org/abs/2006.08505.
+
 QDPG has been udpated to enter in the container+emitter framework of QD. Furthermore,
 it has been updated to work better with Jax in term of time cost. Those changes have
 been made in accordance with the authors of this algorithm.
@@ -44,7 +45,9 @@ class QDPGEmitter(MultiEmitter):
 
         # define the quality emitter
         q_emitter = QualityPGEmitter(
-            config=config.qpg_config, policy_network=policy_network, env=env
+            config=config.qpg_config,
+            policy_network=policy_network,
+            env=env
         )
         # define the diversity emitter
         d_emitter = DiversityPGEmitter(
@@ -53,7 +56,6 @@ class QDPGEmitter(MultiEmitter):
             env=env,
             score_novelty=score_novelty,
         )
-
         # define the GA emitter
         variation_fn = functools.partial(
             isoline_variation, iso_sigma=config.iso_sigma, line_sigma=config.line_sigma

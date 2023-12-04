@@ -1,97 +1,44 @@
-import os
+from typing import Tuple
+from dataclasses import dataclass
 import functools
+import os
 import time
 import pickle
-from dataclasses import dataclass
-from typing import Tuple
 
 import jax
 import jax.numpy as jnp
 
-from qdax.core.map_elites import MAPElites
-from qdax.core.containers.mapelites_repertoire import compute_cvt_centroids, MapElitesRepertoire
-from qdax import environments
-from qdax.environments.locomotion_wrappers import HumanoidOmniDCGWrapper, HexapodOmniDCGWrapper, AntOmniDCGWrapper, AntTrapOmniDCGWrapper, Walker2dDCGWrapper, HalfcheetahDCGWrapper
+from qdax.core.containers.mapelites_repertoire import compute_cvt_centroids
 from qdax.tasks.brax_envs import reset_based_scoring_function_brax_envs as scoring_function
-from qdax.core.neuroevolution.buffers.buffer import QDTransition
-from qdax.core.neuroevolution.networks.networks import MLP
+from qdax.environments import behavior_descriptor_extractor
+from qdax.core.map_elites import MAPElites
 from qdax.core.emitters.mutation_operators import isoline_variation
 from qdax.core.emitters.standard_emitters import MixingEmitter
-
-from qdax.utils.plotting import plot_map_elites_results
+from qdax.core.neuroevolution.buffers.buffer import QDTransition
+from qdax.core.neuroevolution.networks.networks import MLP
 from qdax.utils.metrics import CSVLogger, default_qd_metrics
+from qdax.utils.plotting import plot_map_elites_results
 
 import hydra
 from hydra.core.config_store import ConfigStore
+from omegaconf import OmegaConf
+import wandb
+from utils import Config, get_env
 
 
-@dataclass
-class Config:
-    # QD
-    algo_name: str
-    seed: int
-    num_iterations: int
-
-    # Environment
-    env_name: str
-    episode_length: int
-    env_batch_size: int
-
-    # Archive
-    num_init_cvt_samples: int
-    num_centroids: int
-    min_bd: float
-    max_bd: float
-    policy_hidden_layer_sizes: Tuple[int, ...]
-
-    # GA emitter
-    iso_sigma: float
-    line_sigma: float
-
-@hydra.main(config_path="configs/", config_name="me")
+@hydra.main(version_base="1.2", config_path="configs/", config_name="me")
 def main(config: Config) -> None:
+    wandb.init(
+        project="DCG-MAP-Elites",
+        name=config.algo.name,
+        config=OmegaConf.to_container(config, resolve=True),
+    )
+
     # Init a random key
     random_key = jax.random.PRNGKey(config.seed)
 
     # Init environment
-    if config.env_name == "humanoid_omni":
-        config.episode_length = 250
-        config.min_bd, config.max_bd = -30., 30.
-
-        env = environments.create(config.env_name, episode_length=config.episode_length, fixed_init_state=True)
-        env = HumanoidOmniDCGWrapper(env, config.env_name)
-    elif config.env_name == "hexapod_omni":
-        config.episode_length = 250
-        config.min_bd, config.max_bd = -2., 2.
-
-        env = environments.create(config.env_name, episode_length=config.episode_length)
-        env = HexapodOmniDCGWrapper(env, config.env_name)
-    elif config.env_name == "ant_omni":
-        config.episode_length = 250
-        config.min_bd, config.max_bd = -30., 30.
-
-        env = environments.create(config.env_name, episode_length=config.episode_length, fixed_init_state=True, use_contact_forces=False)
-        env = AntOmniDCGWrapper(env, config.env_name)
-    elif config.env_name == "anttrap_omni":
-        config.episode_length = 250
-        config.min_bd, config.max_bd = -30., 30.
-
-        env = environments.create(config.env_name, episode_length=config.episode_length, fixed_init_state=True, use_contact_forces=False)
-        env = AntTrapOmniDCGWrapper(env, config.env_name)
-    elif config.env_name == "walker2d_uni":
-        config.episode_length = 1000
-        config.min_bd, config.max_bd = 0., 1.
-
-        env = environments.create(config.env_name, episode_length=config.episode_length, fixed_init_state=True)
-        env = Walker2dDCGWrapper(env, config.env_name)
-    elif config.env_name == "halfcheetah_uni":
-        config.episode_length = 1000
-        config.min_bd, config.max_bd = 0., 1.
-
-        env = environments.create(config.env_name, episode_length=config.episode_length, fixed_init_state=True)
-        env = HalfcheetahDCGWrapper(env, config.env_name)
-    else:
-        raise ValueError("Invalid environment name.")
+    env = get_env(config)
     reset_fn = jax.jit(env.reset)
 
     # Compute the centroids
@@ -99,8 +46,8 @@ def main(config: Config) -> None:
         num_descriptors=env.behavior_descriptor_length,
         num_init_cvt_samples=config.num_init_cvt_samples,
         num_centroids=config.num_centroids,
-        minval=config.min_bd,
-        maxval=config.max_bd,
+        minval=config.env.min_bd,
+        maxval=config.env.max_bd,
         random_key=random_key,
     )
 
@@ -114,22 +61,16 @@ def main(config: Config) -> None:
 
     # Init population of controllers
     random_key, subkey = jax.random.split(random_key)
-    keys = jax.random.split(subkey, num=config.env_batch_size)
-    fake_batch = jnp.zeros(shape=(config.env_batch_size, env.observation_size))
-    init_variables = jax.vmap(policy_network.init)(keys, fake_batch)
+    keys = jax.random.split(subkey, num=config.batch_size)
+    fake_batch_obs = jnp.zeros(shape=(config.batch_size, env.observation_size))
+    init_params = jax.vmap(policy_network.init)(keys, fake_batch_obs)
+
+    param_count = sum(x[0].size for x in jax.tree_util.tree_leaves(init_params))
+    print("Number of parameters in policy_network: ", param_count)
 
     # Define the fonction to play a step with the policy in the environment
-    def play_step_fn(
-        env_state,
-        policy_params,
-        random_key,
-    ):
-        """
-        Play an environment step and return the updated state and the transition.
-        """
-
+    def play_step_fn(env_state, policy_params, random_key):
         actions = policy_network.apply(policy_params, env_state.obs)
-        
         state_desc = env_state.info["state_descriptor"]
         next_state = env.step(env_state, actions)
 
@@ -138,43 +79,45 @@ def main(config: Config) -> None:
             next_obs=next_state.obs,
             rewards=next_state.reward,
             dones=next_state.done,
-            actions=actions,
             truncations=next_state.info["truncation"],
+            actions=actions,
             state_desc=state_desc,
             next_state_desc=next_state.info["state_descriptor"],
-            desc=jnp.zeros(state_desc.shape) * jnp.nan,
-            input_desc=jnp.zeros(state_desc.shape) * jnp.nan,
+            desc=jnp.zeros(env.behavior_descriptor_length,) * jnp.nan,
+            desc_prime=jnp.zeros(env.behavior_descriptor_length,) * jnp.nan,
         )
 
         return next_state, policy_params, random_key, transition
 
     # Prepare the scoring function
-    bd_extraction_fn = environments.behavior_descriptor_extractor[config.env_name]
+    bd_extraction_fn = behavior_descriptor_extractor[config.env.name]
     scoring_fn = functools.partial(
         scoring_function,
-        episode_length=config.episode_length,
+        episode_length=config.env.episode_length,
         play_reset_fn=reset_fn,
         play_step_fn=play_step_fn,
         behavior_descriptor_extractor=bd_extraction_fn,
     )
 
-    # Evaluation functions
+    @jax.jit
     def evaluate_repertoire(random_key, repertoire):
-        _scoring_fn = functools.partial(
-            scoring_function,
-            episode_length=config.episode_length,
-            play_reset_fn=reset_fn,
-            play_step_fn=play_step_fn,
-            behavior_descriptor_extractor=bd_extraction_fn,
-        )
-        fitnesses, descriptors, extra_scores, random_key = _scoring_fn(
+        repertoire_empty = repertoire.fitnesses == -jnp.inf
+
+        fitnesses, descriptors, extra_scores, random_key = scoring_fn(
             repertoire.genotypes, random_key
         )
 
-        repertoire_empty = repertoire.fitnesses == -jnp.inf
-        distance = jnp.linalg.norm(repertoire.descriptors - descriptors, axis=1)
-        distance_mean = jnp.sum((1.0 - repertoire_empty) * distance) / jnp.sum(1.0 - repertoire_empty)
-        return random_key, float(distance_mean)
+        # Compute repertoire QD score
+        qd_score = jnp.sum((1.0 - repertoire_empty) * fitnesses).astype(float)
+
+        # Compute repertoire desc error mean
+        error = jnp.linalg.norm(repertoire.descriptors - descriptors, axis=1)
+        dem = (jnp.sum((1.0 - repertoire_empty) * error) / jnp.sum(1.0 - repertoire_empty)).astype(float)
+
+        return random_key, qd_score, dem
+
+    def get_n_offspring_added(metrics):
+        return jnp.sum(metrics["is_offspring_added"], axis=-1)
 
     # Get minimum reward value to make sure qd_score are positive
     reward_offset = 0
@@ -182,18 +125,18 @@ def main(config: Config) -> None:
     # Define a metrics function
     metrics_function = functools.partial(
         default_qd_metrics,
-        qd_offset=reward_offset * config.episode_length,
+        qd_offset=reward_offset * config.env.episode_length,
     )
 
     # Define emitter
     variation_fn = functools.partial(
-        isoline_variation, iso_sigma=config.iso_sigma, line_sigma=config.line_sigma
+        isoline_variation, iso_sigma=config.algo.iso_sigma, line_sigma=config.algo.line_sigma
     )
     mixing_emitter = MixingEmitter(
         mutation_fn=None,
         variation_fn=variation_fn,
         variation_percentage=1.0,
-        batch_size=config.env_batch_size
+        batch_size=config.batch_size
     )
 
     # Instantiate MAP-Elites
@@ -204,66 +147,62 @@ def main(config: Config) -> None:
     )
 
     # Compute initial repertoire and emitter state
-    repertoire, emitter_state, random_key = map_elites.init(init_variables, centroids, random_key)
+    repertoire, emitter_state, random_key = map_elites.init(init_params, centroids, random_key)
 
     log_period = 10
     num_loops = int(config.num_iterations / log_period)
 
+    metrics = dict.fromkeys(["iteration", "qd_score", "coverage", "max_fitness", "qd_score_repertoire", "dem_repertoire", "ga_offspring_added", "time"], jnp.array([]))
     csv_logger = CSVLogger(
         "./log.csv",
-        header=["loop", "iteration", "qd_score", "max_fitness", "mean_fitness", "coverage", "distance_mean_repertoire", "mutation_ga_count", "mutation_pg_count", "time"]
+        header=list(metrics.keys())
     )
-    all_metrics = {}
 
-    scan_update = map_elites.scan_update
-    # main loop
+    # Main loop
+    map_elites_scan_update = map_elites.scan_update
     for i in range(num_loops):
         start_time = time.time()
-        # main iterations
-        (repertoire, emitter_state, random_key,), metrics = jax.lax.scan(
-            scan_update,
+        (repertoire, emitter_state, random_key,), current_metrics = jax.lax.scan(
+            map_elites_scan_update,
             (repertoire, emitter_state, random_key),
             (),
             length=log_period,
         )
         timelapse = time.time() - start_time
 
-        # log metrics
-        logged_metrics = {"time": timelapse, "loop": 1+i, "iteration": (i+1)*log_period}
-        for key, value in metrics.items():
-            if key in ["mutation_ga_count", "mutation_pg_count"]:
-                # sum values
-                logged_metrics[key] = jnp.sum(value)
-            else:
-                # take last value
-                logged_metrics[key] = value[-1]
+        # Metrics
+        random_key, qd_score_repertoire, dem_repertoire = evaluate_repertoire(random_key, repertoire)
 
-            # take all values
-            if key in all_metrics.keys():
-                all_metrics[key] = jnp.concatenate([all_metrics[key], value])
-            else:
-                all_metrics[key] = value
+        current_metrics["iteration"] = jnp.arange(1+log_period*i, 1+log_period*(i+1), dtype=jnp.int32)
+        current_metrics["time"] = jnp.repeat(timelapse, log_period)
+        current_metrics["qd_score_repertoire"] = jnp.repeat(qd_score_repertoire, log_period)
+        current_metrics["dem_repertoire"] = jnp.repeat(dem_repertoire, log_period)
+        current_metrics["ga_offspring_added"] = get_n_offspring_added(current_metrics)
+        del current_metrics["is_offspring_added"]
+        metrics = jax.tree_util.tree_map(lambda metric, current_metric: jnp.concatenate([metric, current_metric], axis=0), metrics, current_metrics)
 
-        random_key, distance_mean_repertoire = evaluate_repertoire(random_key, repertoire)
-
-        logged_metrics["distance_mean_repertoire"] = distance_mean_repertoire
-
-        csv_logger.log(logged_metrics)
-
-    # Plot
-    env_steps = jnp.arange(config.num_iterations) * config.episode_length * config.env_batch_size
-    fig, axes = plot_map_elites_results(env_steps=env_steps, metrics=all_metrics, repertoire=repertoire, min_bd=config.min_bd, max_bd=config.max_bd)
-    fig.savefig("./plot.png")
+        # Log
+        log_metrics = jax.tree_util.tree_map(lambda metric: metric[-1], metrics)
+        log_metrics["ga_offspring_added"] = jnp.sum(current_metrics["ga_offspring_added"])
+        csv_logger.log(log_metrics)
+        wandb.log(log_metrics)
 
     # Metrics
     with open("./metrics.pickle", "wb") as metrics_file:
-        pickle.dump(all_metrics, metrics_file)
+        pickle.dump(metrics, metrics_file)
 
     # Repertoire
     os.mkdir("./repertoire/")
     repertoire.save(path="./repertoire/")
 
+    # Plot
+    if env.behavior_descriptor_length == 2:
+        env_steps = jnp.arange(config.num_iterations) * config.env.episode_length * config.batch_size
+        fig, _ = plot_map_elites_results(env_steps=env_steps, metrics=metrics, repertoire=repertoire, min_bd=config.env.min_bd, max_bd=config.env.max_bd)
+        fig.savefig("./plot.png")
+
+
 if __name__ == "__main__":
     cs = ConfigStore.instance()
-    cs.store(name="main", node=Config)
+    cs.store(name="config", node=Config)
     main()

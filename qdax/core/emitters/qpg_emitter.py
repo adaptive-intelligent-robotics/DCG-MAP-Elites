@@ -112,6 +112,7 @@ class QualityPGEmitter(Emitter):
     @property
     def use_all_data(self) -> bool:
         """Whether to use all data or not when used along other emitters.
+
         QualityPGEmitter uses the transitions from the genotypes that were generated
         by other emitters.
         """
@@ -121,9 +122,11 @@ class QualityPGEmitter(Emitter):
         self, init_genotypes: Genotype, random_key: RNGKey
     ) -> Tuple[QualityPGEmitterState, RNGKey]:
         """Initializes the emitter state.
+
         Args:
             init_genotypes: The initial population.
             random_key: A random key.
+
         Returns:
             The initial state of the PGAMEEmitter, a new random key.
         """
@@ -175,10 +178,7 @@ class QualityPGEmitter(Emitter):
 
         return emitter_state, random_key
 
-    @partial(
-        jax.jit,
-        static_argnames=("self",),
-    )
+    @partial(jax.jit, static_argnames=("self",),)
     def emit(
         self,
         repertoire: Repertoire,
@@ -186,10 +186,12 @@ class QualityPGEmitter(Emitter):
         random_key: RNGKey,
     ) -> Tuple[Genotype, RNGKey]:
         """Do a step of PG emission.
+
         Args:
             repertoire: the current repertoire of genotypes
             emitter_state: the state of the emitter used
             random_key: a random key
+
         Returns:
             A batch of offspring, the new emitter state and a new key.
         """
@@ -198,7 +200,7 @@ class QualityPGEmitter(Emitter):
 
         # sample parents
         mutation_pg_batch_size = int(batch_size - 1)
-        parents, _, random_key = repertoire.sample(random_key, mutation_pg_batch_size)
+        parents, random_key = repertoire.sample(random_key, mutation_pg_batch_size)
 
         # apply the pg mutation
         offsprings_pg = self.emit_pg(emitter_state, parents)
@@ -218,21 +220,20 @@ class QualityPGEmitter(Emitter):
             offspring_actor,
         )
 
-        return genotypes, self.batch_size, random_key
+        return genotypes, {}, random_key
 
-    @partial(
-        jax.jit,
-        static_argnames=("self",),
-    )
+    @partial(jax.jit, static_argnames=("self",),)
     def emit_pg(
         self, emitter_state: QualityPGEmitterState, parents: Genotype
     ) -> Genotype:
         """Emit the offsprings generated through pg mutation.
+
         Args:
             emitter_state: current emitter state, contains critic and
                 replay buffer.
             parents: the parents selected to be applied gradients in order
                 to mutate towards better performance.
+
         Returns:
             A new set of offsprings.
         """
@@ -244,16 +245,16 @@ class QualityPGEmitter(Emitter):
 
         return offsprings
 
-    @partial(
-        jax.jit,
-        static_argnames=("self",),
-    )
+    @partial(jax.jit, static_argnames=("self",),)
     def emit_actor(self, emitter_state: QualityPGEmitterState) -> Genotype:
         """Emit the greedy actor.
+
         Simply needs to be retrieved from the emitter state.
+
         Args:
             emitter_state: the current emitter state, it stores the
                 greedy actor.
+
         Returns:
             The parameters of the actor.
         """
@@ -271,10 +272,12 @@ class QualityPGEmitter(Emitter):
     ) -> QualityPGEmitterState:
         """This function gives an opportunity to update the emitter state
         after the genotypes have been scored.
+
         Here it is used to fill the Replay Buffer with the transitions
         from the scoring of the genotypes, and then the training of the
         critic/actor happens. Hence the params of critic/actor are updated,
         as well as their optimizer states.
+
         Args:
             emitter_state: current emitter state.
             repertoire: the current genotypes repertoire
@@ -283,6 +286,7 @@ class QualityPGEmitter(Emitter):
             descriptors: unused here - but compulsory in the signature.
             extra_scores: extra information coming from the scoring function,
                 this contains the transitions added to the replay buffer.
+
         Returns:
             New emitter state where the replay buffer has been filled with
             the new experienced transitions.
@@ -319,9 +323,12 @@ class QualityPGEmitter(Emitter):
         """Apply one gradient step to critics and to the greedy actor
         (contained in carry in training_state), then soft update target critics
         and target actor.
+
         Those updates are very similar to those made in TD3.
+
         Args:
             emitter_state: actual emitter state
+
         Returns:
             New emitter state where the critic and the greedy actor have been
             updated. Optimizer states have also been updated in the process.
@@ -464,11 +471,13 @@ class QualityPGEmitter(Emitter):
         """Apply pg mutation to a policy via multiple steps of gradient descent.
         First, update the rewards to be diversity rewards, then apply the gradient
         steps.
+
         Args:
             policy_params: a policy, supposed to be a differentiable neural
                 network.
             emitter_state: the current state of the emitter, containing among others,
                 the replay buffer, the critic.
+
         Returns:
             The updated params of the neural network.
         """
@@ -513,10 +522,12 @@ class QualityPGEmitter(Emitter):
         policy_optimizer_state: optax.OptState,
     ) -> Tuple[QualityPGEmitterState, Params, optax.OptState]:
         """Apply one gradient step to a policy (called policy_params).
+
         Args:
             emitter_state: current state of the emitter.
             policy_params: parameters corresponding to the weights and bias of
                 the neural network that defines the policy.
+
         Returns:
             The new emitter state and new params of the NN.
         """

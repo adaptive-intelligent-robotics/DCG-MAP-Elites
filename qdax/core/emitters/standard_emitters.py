@@ -55,13 +55,13 @@ class MixingEmitter(Emitter):
         n_mutation = self._batch_size - n_variation
 
         if n_variation > 0:
-            x1, _, random_key = repertoire.sample(random_key, n_variation)
-            x2, _, random_key = repertoire.sample(random_key, n_variation)
+            x1, random_key = repertoire.sample(random_key, n_variation)
+            x2, random_key = repertoire.sample(random_key, n_variation)
 
             x_variation, random_key = self._variation_fn(x1, x2, random_key)
 
         if n_mutation > 0:
-            x1, _, random_key = repertoire.sample(random_key, n_mutation)
+            x1, random_key = repertoire.sample(random_key, n_mutation)
             x_mutation, random_key = self._mutation_fn(x1, random_key)
 
         if n_variation == 0:
@@ -75,7 +75,7 @@ class MixingEmitter(Emitter):
                 x_mutation,
             )
 
-        return genotypes, self._batch_size, random_key
+        return genotypes, {}, random_key
 
     @property
     def batch_size(self) -> int:

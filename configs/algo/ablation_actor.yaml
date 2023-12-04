@@ -1,0 +1,28 @@
+name: ablation_actor
+
+ga_batch_size: 128
+qpg_batch_size: 128
+ai_batch_size: 0
+actor_batch_size: 0
+lengthscale: 0.1
+dc_actor: False
+
+# GA emitter
+iso_sigma: 0.005
+line_sigma: 0.05
+
+# PG emitter
+critic_hidden_layer_size: [256, 256]
+num_critic_training_steps: 3000
+num_pg_training_steps: 150
+batch_size: 100
+replay_buffer_size: 1_000_000
+discount: 0.99
+reward_scaling: 1.0
+critic_learning_rate: 3e-4
+actor_learning_rate: 3e-4
+policy_learning_rate: 5e-3
+noise_clip: 0.5
+policy_noise: 0.2
+soft_tau_update: 0.005
+policy_delay: 2

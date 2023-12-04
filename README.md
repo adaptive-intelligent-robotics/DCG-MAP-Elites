@@ -1,68 +1,96 @@
 # Descriptor-Conditioned Gradients MAP-Elites
 
-Repository for [MAP-Elites with Descriptor-Conditioned Gradients and Archive Distillation into a Single Policy](https://arxiv.org/abs/) paper, introducing the _Descriptor-Conditioned Gradients MAP-Elites_ algorithm (DCG-MAP-Elites). This builds on top of the [QDax](https://github.com/adaptive-intelligent-robotics/QDax) framework and includes four baselines and three ablation studies:
+Repository for:
+- [_MAP-Elites with Descriptor-Conditioned Gradients and Archive Distillation into a Single Policy_](https://dl.acm.org/doi/10.1145/3583131.3590503), introducing **DCG-MAP-Elites GECCO**, and that received a _Best Paper Award_ at GECCO 2023 in Lisbon.
+- _Synergizing Quality-Diversity with Descriptor-Conditioned Reinforcement Learning_, introducing **DCG-MAP-Elites-AI**, an extension of DCG-MAP-Elites GECCO.
 
-- [MAP-Elites](https://arxiv.org/abs/1610.05729)
-- [MAP-Elites ES](https://arxiv.org/abs/2003.01825)
-- [PGA-MAP-Elites](https://hal.archives-ouvertes.fr/hal-03135723v2/file/PGA_MAP_Elites_GECCO.pdf)
-- [QD-PG](https://arxiv.org/abs/2006.08505)
-- Ablation 1: DCG-MAP-Elites without actor evaluation and without negative samples
-- Ablation 2: DCG-MAP-Elites without actor evaluation but with negative samples
-- Ablation 3: DCG-MAP-Elites without a descriptor-conditioned actor
+## Summary
 
-DCG-MAP-Elites builds upon PGA-MAP-Elites algorithm and introduces two contributions:
+DCG-MAP-Elites-AI builds upon PGA-MAP-Elites algorithm and introduces three key contributions:
+1. The Policy Gradient variation operator is enhanced with a descriptor-conditioned critic that reconciles diversity search with gradient-based methods coming from reinforcement learning.
+2. As a by-product of the critic's training, a descriptor-conditioned actor is trained, at no additional cost, distilling the knowledge of the population into one single versatile policy that can execute a diversity of high-performing behaviors.
+3. In turn, we exploit the descriptor-conditioned actor by injecting it in the population, despite network architecture differences.
 
-1. The Policy Gradient variation operator is enhanced with a descriptor-conditioned critic that provides gradients depending on a targeted descriptor.
-2. Concurrently to the critic's training, the knowledge of the archive is distilled in the descriptor-conditioned actor at no additional cost. This single versatile policy can execute the entire range of behaviors contained in the archive.
+This repository builds on top of the [QDax](https://github.com/adaptive-intelligent-robotics/QDax) framework and includes four baselines and three ablation studies:
 
-<p align="center">
-<img width="800" alt="teaser" src="https://user-images.githubusercontent.com/49123210/222401712-fa657210-ce2b-4155-a9cb-5189e281b039.svg">
-</p>
+### Baselines
+
+- [MAP-Elites](https://arxiv.org/abs/1504.04909)
+- [MAP-Elites ES](https://dl.acm.org/doi/10.1145/3377930.3390217)
+- [PGA-MAP-Elites](https://dl.acm.org/doi/10.1145/3449639.3459304)
+- [QD-PG](https://dl.acm.org/doi/10.1145/3512290.3528845)
+
+### Ablations
+
+- DCG-MAP-Elites GECCO
+- DCG-MAP-Elites without Actor Injection
+- DCG-MAP-Elites without a Descriptor-Conditioned Actor
 
 ## Installation
 
 To run this code, you need to clone the repository and install the required libraries with:
 ```bash
-git clone ...
+git clone https://github.com/adaptive-intelligent-robotics/DCG-MAP-Elites
 pip install -r requirements.txt
 ```
 
-However, we recommend using a containerized environment such as Docker or Singularity. Further details are provided in the last section.
+However, we recommend using a containerized environment with Apptainer.
 
-## Usage
+## Apptainer
 
-To run DCG-MAP-Elites or any other algorithm mentioned in the paper, you just need to run the relevant main script. For example, to run DCG-MAP-Elites, you can run:
+We provide an Apptainer/Singularity Definition file, to run the source code in a containerized environment in which all the experiments and figures can be reproduced. In the following, make sure you are at the root of the cloned repository.
+
+To build a container using Apptainer/Singularity, use the provided `apptainer/container.def` file:
 ```bash
-python3 main_dcg_me.py
+apptainer build --fakeroot --force --sandbox apptainer/container.sif apptainer/container.def
 ```
 
-Or to run the MAP-Elites algorithm:
+Then, you can run a shell within the container with:
 ```bash
-python3 main_me.py
+apptainer shell --pwd /project/ --bind $(pwd):/project/ --cleanenv --containall --home /tmp/ --no-home --nv --workdir --writable apptainer/ apptainer/container.sif"
 ```
 
-The hyperparameters of the algorithms can be found and modified in the `configs` directory of the repository. Alternatively, they can be modified directly in the command line. For example, to increase the `num_critic_training_steps` parameter to 3000 in DCG-MAP-Elites, you can run:
+## Run main experiments
 
-```bash
-python3 main_dcg_me.py num_critic_training_steps=3000
+To run any algorithms `<algo>`, on any environments `<env>`:
+1. Build a container
+2. Run a shell within the container, as explained in the previous section
+3. In `/project/`, run `python main.py env=<env> algo=<algo> seed=$RANDOM num_iterations=4000` to run for 1,024,000 evaluations
+4. During training, the metrics, visualizations and plots of performance can be found in real time in the `output/` directory
+
+For example, to run DCG-MAP-Elites-AI on Ant Omni:
+```
+python main.py env=ant_omni algo=dcg_me seed=$RANDOM num_iterations=4000
 ```
 
-Running each algorithm automatically saves metrics, visualisations and plots of performance into the `outputs` directory.
-
-## Singularity
-
-To build a container using Singularity make sure you are in the root of the repository and then run:
-
+The configurations for all algorithms and all environments can be found in the `configs/` directory. Alternatively, they can be modified directly in the command line. For example, to increase `num_critic_training_steps` to 5000 in PGA-MAP-Elites, you can run:
 ```bash
-singularity build --fakeroot --force singularity/container.sif singularity/singularity.def
+python main.py env=walker2d_uni algo=pga_me seed=$RANDOM num_iterations=4000 algo.num_critic_training_steps=5000
 ```
 
-You can execute the container with:
+## Run reproducibility experiments
 
+The reproducibility experiments load the saved archives from the main experiment (see previous section) and evaluate the expected QD score, expected distance to descriptor and expected max fitness of the populations of the different algorithms.
+
+> :warning: Before running a reproducibility experiment, the main experiment for the corresponding environment and algorithm should be completed.
+
+For example, to evaluate the reproducibility for QD-PG on AntTrap Omni, run:
 ```bash
-singularity -d run --app [APP NAME] --cleanenv --containall --no-home --nv container.sif [EXTRA ARGUMENTS]
+python main_reproducibility.py env_name=anttrap_omni algo_name=qd_pg
 ```
 
-where 
-- [APP NAME] is the name of the experiment you want to run, as specified by `%apprun` in the `singularity/singularity.def` file. There is a specific `%apprun` for each of the algorithms, ablations and baselines mentioned in the paper.
-- [EXTRA ARGUMENTS] is a list of any futher arguments that you want to add. For example, you may want to change the random seed or Brax environment.
+The results will be saved in the `output/reproducibility/` directory.
+
+## Figures
+
+Once all the experiments are completed, any figures from the paper can be replicated with the scripts in the `analysis/` directory.
+
+- Figure 1: `analysis/plot_main.py`
+- Figure 2: `analysis/plot_archive.py`
+- Figure 3: `analysis/plot_ablation.py`
+- Figure 4: `analysis/plot_reproducibility.py`
+- Figure 5: `analysis/plot_elites.py`
+
+## P-values
+
+Once all the experiments are completed, any p-values from the paper can be replicated with the script `analysis/p_values.py`.

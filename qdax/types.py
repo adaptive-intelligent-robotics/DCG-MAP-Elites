@@ -1,27 +1,28 @@
-"""Defines some types used in PaRL"""
+"""Defines types used in QDax"""
 
 from typing import Dict, Generic, TypeVar, Union
 
-import brax.envs
+from brax.envs.base import State
 import jax
 import jax.numpy as jnp
 from chex import ArrayTree
 from typing_extensions import TypeAlias
+
 
 # MDP types
 Observation: TypeAlias = jnp.ndarray
 Action: TypeAlias = jnp.ndarray
 Reward: TypeAlias = jnp.ndarray
 Done: TypeAlias = jnp.ndarray
-EnvState: TypeAlias = brax.envs.State
+EnvState: TypeAlias = State
 Params: TypeAlias = ArrayTree
 
 # Evolution types
-StateDescriptor: TypeAlias = jnp.ndarray
-Fitness: TypeAlias = jnp.ndarray
 Genotype: TypeAlias = ArrayTree
-Descriptor: TypeAlias = jnp.ndarray
 Centroid: TypeAlias = jnp.ndarray
+Fitness: TypeAlias = jnp.ndarray
+Descriptor: TypeAlias = jnp.ndarray
+StateDescriptor: TypeAlias = jnp.ndarray
 Gradient: TypeAlias = jnp.ndarray
 
 Skill: TypeAlias = jnp.ndarray
@@ -37,8 +38,7 @@ class ParetoFront(Generic[T]):
         super().__init__()
 
 
-Mask: TypeAlias = jnp.ndarray
-
 # Others
+Mask: TypeAlias = jnp.ndarray
 RNGKey: TypeAlias = jax.random.KeyArray
 Metrics: TypeAlias = Dict[str, jnp.ndarray]

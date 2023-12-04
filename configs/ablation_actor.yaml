@@ -1,0 +1,19 @@
+hydra:
+  job:
+    chdir: True
+  run:
+    dir: ./output/${env.name}/${algo.name}/${now:%Y-%m-%d_%H%M%S_%f}
+
+defaults:
+  - _self_
+  - env: ant_omni
+  - algo: ablation_actor
+
+seed: 42
+num_iterations: 100
+batch_size: 256
+
+# Archive
+num_init_cvt_samples: 50000
+num_centroids: 1024
+policy_hidden_layer_sizes: [128, 128]

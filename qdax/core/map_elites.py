@@ -5,6 +5,7 @@ from functools import partial
 from typing import Any, Callable, Optional, Tuple
 
 import jax
+import jax.numpy as jnp
 
 from qdax.core.containers.mapelites_repertoire import MapElitesRepertoire
 from qdax.core.emitters.emitter import Emitter, EmitterState
@@ -82,11 +83,16 @@ class MAPElites:
             fitnesses=fitnesses,
             descriptors=descriptors,
             centroids=centroids,
+            extra_scores=extra_scores,
         )
 
         # get initial state of the emitter
         emitter_state, random_key = self._emitter.init(
             init_genotypes=init_genotypes, random_key=random_key
+        )
+
+        _, extra_info, random_key = self._emitter.emit(
+            repertoire, emitter_state, random_key
         )
 
         # update emitter state
@@ -96,7 +102,7 @@ class MAPElites:
             genotypes=init_genotypes,
             fitnesses=fitnesses,
             descriptors=descriptors,
-            extra_scores=extra_scores,
+            extra_scores=extra_scores | extra_info,
         )
 
         return repertoire, emitter_state, random_key
@@ -128,7 +134,7 @@ class MAPElites:
             a new jax PRNG key
         """
         # generate offsprings with the emitter
-        genotypes, mutation_ga_batch_size, random_key = self._emitter.emit(
+        genotypes, extra_info, random_key = self._emitter.emit(
             repertoire, emitter_state, random_key
         )
         # scores the offsprings
@@ -137,7 +143,7 @@ class MAPElites:
         )
 
         # add genotypes in the repertoire
-        repertoire, mutation_ga_count, mutation_pg_count = repertoire.add(genotypes, descriptors, fitnesses, mutation_ga_batch_size)
+        repertoire, is_offspring_added = repertoire.add(genotypes, descriptors, fitnesses, extra_scores)
 
         # update emitter state after scoring is made
         emitter_state = self._emitter.state_update(
@@ -146,13 +152,12 @@ class MAPElites:
             genotypes=genotypes,
             fitnesses=fitnesses,
             descriptors=descriptors,
-            extra_scores=extra_scores,
+            extra_scores=extra_scores | extra_info,
         )
 
         # update the metrics
         metrics = self._metrics_function(repertoire)
-        metrics["mutation_ga_count"] = mutation_ga_count
-        metrics["mutation_pg_count"] = mutation_pg_count
+        metrics["is_offspring_added"] = is_offspring_added
 
         return repertoire, emitter_state, metrics, random_key
 

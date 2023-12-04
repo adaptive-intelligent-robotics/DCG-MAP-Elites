@@ -4,8 +4,9 @@ algorithm as well as several variants."""
 
 from __future__ import annotations
 
+import warnings
 from functools import partial
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import flax
 import jax
@@ -14,7 +15,7 @@ from jax.flatten_util import ravel_pytree
 from numpy.random import RandomState
 from sklearn.cluster import KMeans
 
-from qdax.types import Centroid, Descriptor, Fitness, Genotype, RNGKey
+from qdax.types import Centroid, Descriptor, ExtraScores, Fitness, Genotype, RNGKey
 
 
 def compute_cvt_centroids(
@@ -224,12 +225,36 @@ class MapElitesRepertoire(flax.struct.PyTreeNode):
             lambda x: jax.random.choice(subkey, x, shape=(num_samples,), p=p),
             self.genotypes,
         )
-        descriptors = jax.tree_util.tree_map(
+
+        return samples, random_key
+
+    @partial(jax.jit, static_argnames=("num_samples",))
+    def sample_with_descs(self, random_key: RNGKey, num_samples: int) -> Tuple[Genotype, RNGKey]:
+        """Sample elements in the repertoire.
+
+        Args:
+            random_key: a jax PRNG random key
+            num_samples: the number of elements to be sampled
+
+        Returns:
+            samples: a batch of genotypes sampled in the repertoire
+            random_key: an updated jax PRNG random key
+        """
+
+        repertoire_empty = self.fitnesses == -jnp.inf
+        p = (1.0 - repertoire_empty) / jnp.sum(1.0 - repertoire_empty)
+
+        random_key, subkey = jax.random.split(random_key)
+        samples = jax.tree_util.tree_map(
+            lambda x: jax.random.choice(subkey, x, shape=(num_samples,), p=p),
+            self.genotypes,
+        )
+        descs = jax.tree_util.tree_map(
             lambda x: jax.random.choice(subkey, x, shape=(num_samples,), p=p),
             self.descriptors,
         )
 
-        return samples, descriptors, random_key
+        return samples, descs, random_key
 
     @jax.jit
     def add(
@@ -237,7 +262,7 @@ class MapElitesRepertoire(flax.struct.PyTreeNode):
         batch_of_genotypes: Genotype,
         batch_of_descriptors: Descriptor,
         batch_of_fitnesses: Fitness,
-        mutation_ga_batch_size: int,
+        batch_of_extra_scores: Optional[ExtraScores] = None,
     ) -> MapElitesRepertoire:
         """
         Add a batch of elements to the repertoire.
@@ -250,6 +275,8 @@ class MapElitesRepertoire(flax.struct.PyTreeNode):
                 aforementioned genotypes. Its shape is (batch_size, num_descriptors)
             batch_of_fitnesses: an array that contains the fitnesses of the
                 aforementioned genotypes. Its shape is (batch_size,)
+            batch_of_extra_scores: unused tree that contains the extra_scores of
+                aforementioned genotypes.
 
         Returns:
             The updated MAP-Elites repertoire.
@@ -282,10 +309,6 @@ class MapElitesRepertoire(flax.struct.PyTreeNode):
         )
         addition_condition = batch_of_fitnesses > current_fitnesses
 
-        mask = jnp.expand_dims(jnp.arange(1, addition_condition.shape[0]+1) <= mutation_ga_batch_size, axis=1)
-        mutation_ga_count = jnp.sum(jnp.logical_and(addition_condition, mask))
-        mutation_pg_count = jnp.sum(jnp.logical_and(addition_condition, jnp.logical_not(mask)))
-
         # assign fake position when relevant : num_centroids is out of bound
         batch_of_indices = jnp.where(
             addition_condition, x=batch_of_indices, y=num_centroids
@@ -313,7 +336,7 @@ class MapElitesRepertoire(flax.struct.PyTreeNode):
             fitnesses=new_fitnesses,
             descriptors=new_descriptors,
             centroids=self.centroids,
-        ), mutation_ga_count, mutation_pg_count
+        ), addition_condition.reshape(-1)
 
     @classmethod
     def init(
@@ -322,6 +345,7 @@ class MapElitesRepertoire(flax.struct.PyTreeNode):
         fitnesses: Fitness,
         descriptors: Descriptor,
         centroids: Centroid,
+        extra_scores: Optional[ExtraScores] = None,
     ) -> MapElitesRepertoire:
         """
         Initialize a Map-Elites repertoire with an initial population of genotypes.
@@ -338,28 +362,69 @@ class MapElitesRepertoire(flax.struct.PyTreeNode):
             descriptors: descriptors of the initial genotypes
                 of shape (batch_size, num_descriptors)
             centroids: tesselation centroids of shape (batch_size, num_descriptors)
+            extra_scores: unused extra_scores of the initial genotypes
 
         Returns:
             an initialized MAP-Elite repertoire
         """
-
-        # Initialize repertoire with default values
-        num_centroids = centroids.shape[0]
-        default_fitnesses = -jnp.inf * jnp.ones(shape=num_centroids)
-        default_genotypes = jax.tree_util.tree_map(
-            lambda x: jnp.zeros(shape=(num_centroids,) + x.shape[1:]),
-            genotypes,
+        warnings.warn(
+            (
+                "This type of repertoire does not store the extra scores "
+                "computed by the scoring function"
+            ),
+            stacklevel=2,
         )
-        default_descriptors = jnp.zeros(shape=(num_centroids, centroids.shape[-1]))
 
-        repertoire = cls(
+        # retrieve one genotype from the population
+        first_genotype = jax.tree_util.tree_map(lambda x: x[0], genotypes)
+
+        # create a repertoire with default values
+        repertoire = cls.init_default(genotype=first_genotype, centroids=centroids)
+
+        # add initial population to the repertoire
+        new_repertoire, _ = repertoire.add(genotypes, descriptors, fitnesses, extra_scores)
+
+        return new_repertoire  # type: ignore
+
+    @classmethod
+    def init_default(
+        cls,
+        genotype: Genotype,
+        centroids: Centroid,
+    ) -> MapElitesRepertoire:
+        """Initialize a Map-Elites repertoire with an initial population of
+        genotypes. Requires the definition of centroids that can be computed
+        with any method such as CVT or Euclidean mapping.
+
+        Note: this function has been kept outside of the object MapElites, so
+        it can be called easily called from other modules.
+
+        Args:
+            genotype: the typical genotype that will be stored.
+            centroids: the centroids of the repertoire
+
+        Returns:
+            A repertoire filled with default values.
+        """
+
+        # get number of centroids
+        num_centroids = centroids.shape[0]
+
+        # default fitness is -inf
+        default_fitnesses = -jnp.inf * jnp.ones(shape=num_centroids)
+
+        # default genotypes is all 0
+        default_genotypes = jax.tree_util.tree_map(
+            lambda x: jnp.zeros(shape=(num_centroids,) + x.shape, dtype=x.dtype),
+            genotype,
+        )
+
+        # default descriptor is all zeros
+        default_descriptors = jnp.zeros_like(centroids)
+
+        return cls(
             genotypes=default_genotypes,
             fitnesses=default_fitnesses,
             descriptors=default_descriptors,
             centroids=centroids,
         )
-
-        # Add initial values to the repertoire
-        new_repertoire, _, _ = repertoire.add(genotypes, descriptors, fitnesses, 0)
-
-        return new_repertoire  # type: ignore

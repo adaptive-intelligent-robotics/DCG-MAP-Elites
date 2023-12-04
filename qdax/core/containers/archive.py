@@ -12,9 +12,11 @@ from flax.struct import PyTreeNode
 
 class Archive(PyTreeNode):
     """Stores jnp.ndarray in a way that makes insertion jittable.
+
     An example of use of the archive is the algorithm QDPG: state
     descriptors are stored in this archive and a novelty scorer compares
     new state desciptors to the state descriptors stored in this archive.
+
     Note: notations suppose that the elements are called state desciptors.
     If we where to use this structure for another application, it would be
     better to change the variables name for another one. Does not seem
@@ -30,6 +32,7 @@ class Archive(PyTreeNode):
     @property
     def size(self) -> float:
         """Compute the number of state descriptors stored in the archive.
+
         Returns:
             Size of the archive.
         """
@@ -47,14 +50,17 @@ class Archive(PyTreeNode):
         max_size: int,
     ) -> Archive:
         """Create an Archive instance.
+
         This class method provides a convenient way to create the archive while
         keeping the __init__ function for more general way to init an archive.
+
         Args:
             acceptance_threshold: the minimal distance to a stored descriptor to
                 be respected for a new descriptor to be added.
             state_descriptor_size: the number of elements in a state descriptor.
             max_size: the maximal size of the archive. In case of overflow, previous
                 elements are replaced by new ones. Defaults to 80000.
+
         Returns:
             A newly initialized archive.
         """
@@ -70,11 +76,14 @@ class Archive(PyTreeNode):
     @jax.jit
     def _single_insertion(self, state_descriptor: jnp.ndarray) -> Archive:
         """Insert a single element.
+
         If the archive is not full yet, the new element replaces a fake
         border, if it is full, it replaces the element that was inserted
         first in the archive.
+
         Args:
             state_descriptor: state descriptor to be added.
+
         Returns:
             Return the archive with the newly added element.
         """
@@ -95,11 +104,14 @@ class Archive(PyTreeNode):
         self, condition: bool, state_descriptor: jnp.ndarray
     ) -> Tuple[Archive, jnp.ndarray]:
         """Inserts a single element under a condition.
+
         The function also retrieves the added elements.
+
         Args:
             condition: condition for being added in the archive.
             state_descriptor: state descriptor to be added under the
                 given condition.
+
         Returns:
             The new archive and the added elements.
         """
@@ -121,6 +133,7 @@ class Archive(PyTreeNode):
     @jax.jit
     def insert(self, state_descriptors: jnp.ndarray) -> Archive:
         """Tries to insert a batch of state descriptors in the archive.
+
         1. First, look at the distance of each new state descriptor with the
         already stored ones.
         2. Then, scan the state descriptors, check the distance with
@@ -129,13 +142,16 @@ class Archive(PyTreeNode):
         to a state descriptor in the old archive) and the second (not too close
         from a state descriptor that has just been added), then it is added
         to the archive.
+
         Note 1: the archive has a fixed size, hence, in case of overflow, the
         first elements added are removed first (FIFO style).
         Note 2: keep in mind that fake descriptors are used to help keep the size
         constant. Those correspond to a descriptor very far away from the typical
         values of the problem at hand.
+
         Args:
             state_descriptors: state descriptors to be added.
+
         Returns:
             New archive updated with the state descriptors.
         """
@@ -153,12 +169,15 @@ class Archive(PyTreeNode):
             carry: Tuple[Archive, jnp.ndarray, int], condition_data: Dict
         ) -> Tuple[Tuple[Archive, jnp.ndarray, int], Any]:
             """Iterates over the archive to add elements one after the other.
+
             Args:
                 carry: tuple containing the archive, the state descriptors and the
                     indices.
+
                 condition_data: the first addition condition of the state descriptors
                     given, which corresponds to being sufficiently far away from already
                     stored descriptors.
+
             Returns:
                 The update tuple.
             """
@@ -211,8 +230,10 @@ def score_euclidean_novelty(
     scaling_ratio: float,
 ) -> jnp.ndarray:
     """Scores the novelty of a jnp.ndarray with respect to the elements of an archive.
+
     Typical use case in the construction of the diversity rewards
     in QDPG.
+
     Args:
         archive: an archive of state descriptors.
         state_descriptors: state descriptors which novelty must be scored.
@@ -220,6 +241,7 @@ def score_euclidean_novelty(
             when scoring.
         scaling_ratio: the ratio applied to the the mean distance to obtain the
             final value.
+
     Returns:
         The novelty scores of the given state descriptors.
     """
@@ -235,12 +257,15 @@ def knn(
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """K nearest neigbors - Brute force implementation.
     Using euclidean distance.
+
     Code from https://www.kernel-operations.io/keops/_auto_benchmarks/
     plot_benchmark_KNN.html
+
     Args:
         data: given reference data.
         new_data: data to be compared to the reference data.
         k: number of neigbors to consider.
+
     Returns:
         The distances and indices of the nearest neighbors.
     """
@@ -266,12 +291,16 @@ def knn(
 @partial(jax.jit, static_argnames=("k"))
 def qdax_top_k(data: jnp.ndarray, k: int) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Returns the top k elements of an array.
+
     Interestingly, this naive implementation is faster than the native implementation
     of jax for small k. See issue: https://github.com/google/jax/issues/9940
+
     Waiting for updates in jax to change this implementation.
+
     Args:
         data: given data.
         k: number of top elements to determine.
+
     Returns:
         The values of the elements and their indices in the array.
     """

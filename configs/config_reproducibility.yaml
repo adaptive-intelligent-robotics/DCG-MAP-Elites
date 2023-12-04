@@ -1,0 +1,9 @@
+hydra:
+  job:
+    chdir: True
+  run:
+    dir: ./output/reproducibility/${env_name}/${algo_name}
+
+env_name: ant_omni
+algo_name: dcg_me_actor
+num_evaluations: 512

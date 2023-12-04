@@ -1,0 +1,50 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%help
+	Synergizing Quality-Diversity with Descriptor-Conditioned Reinforcement Learning
+
+%environment
+	# Activate virtual environment permanently
+	export VIRTUAL_ENV="/venv"
+	export _OLD_VIRTUAL_PATH="$PATH"
+	export PATH="$VIRTUAL_ENV/bin:$PATH"
+
+	# System
+	export TZ=Europe/London
+	export OPENBLAS_NUM_THREADS=1
+
+%post
+	export DEBIAN_FRONTEND=noninteractive
+
+	# Update and install required libraries
+	apt update
+	apt install -y wget git software-properties-common tmux
+
+	# Install Python
+	add-apt-repository ppa:deadsnakes/ppa
+	apt install -y python3.10 python3.10-venv
+
+	# Create a virtual environment
+	python3.10 -m venv /venv
+	. /venv/bin/activate
+	python -m ensurepip
+	pip install --upgrade pip
+
+	# Install JAX
+	pip install --upgrade "jax[cuda11_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+	# Install Brax with renderer
+	pip install git+https://github.com/JoeyTeng/brax.git@main
+
+	# Clone repository to /project/
+	git clone https://github.com/adaptive-intelligent-robotics/DCG-MAP-Elites.git /project/
+	cd /project/
+	git checkout $COMMIT
+
+	# Install requirements
+	pip install -r requirements.txt
+
+%runscript
+	# Run main
+	python /project/main.py "$@"

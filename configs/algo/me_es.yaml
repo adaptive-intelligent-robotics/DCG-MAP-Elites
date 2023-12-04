@@ -1,0 +1,15 @@
+name: me_es
+
+sample_number: 1000
+sample_sigma: 0.02
+num_optimizer_steps: 10
+learning_rate: 0.01
+l2_coefficient: 0.02
+novelty_nearest_neighbors: 10
+last_updated_size: 5
+exploit_num_cell_sample: 2
+explore_num_cell_sample: 5
+adam_optimizer: True
+sample_mirror: True
+sample_rank_norm: True
+use_explore: True

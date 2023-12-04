@@ -1,0 +1,82 @@
+job_name: dcg_me
+
+walltime: 11:59:00
+
+nnodes: 1
+ncpus: 4
+mem: 24gb
+ngpus: 1
+gpu_type: RTX6000
+
+queue: null  # -q express -P exp-00097
+njobs: 20
+args:
+  # walker2d_uni
+  - "algo=me env=walker2d_uni seed=$RANDOM num_iterations=4000"
+  - "algo=me_es env=walker2d_uni seed=$RANDOM num_iterations=4000 batch_size=1"
+  - "algo=pga_me env=walker2d_uni seed=$RANDOM num_iterations=4000"
+  - "algo=qd_pg env=walker2d_uni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me env=walker2d_uni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me_gecco env=walker2d_uni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_ai env=walker2d_uni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_actor env=walker2d_uni seed=$RANDOM num_iterations=4000"
+
+  # halfcheetah_uni
+  - "algo=me env=halfcheetah_uni seed=$RANDOM num_iterations=4000"
+  - "algo=me_es env=halfcheetah_uni seed=$RANDOM num_iterations=4000 batch_size=1"
+  - "algo=pga_me env=halfcheetah_uni seed=$RANDOM num_iterations=4000"
+  - "algo=qd_pg env=halfcheetah_uni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me env=halfcheetah_uni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me_gecco env=halfcheetah_uni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_ai env=halfcheetah_uni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_actor env=halfcheetah_uni seed=$RANDOM num_iterations=4000"
+
+  # ant_uni
+  - "algo=me env=ant_uni seed=$RANDOM num_iterations=4000"
+  - "algo=me_es env=ant_uni seed=$RANDOM num_iterations=4000 batch_size=1"
+  - "algo=pga_me env=ant_uni seed=$RANDOM num_iterations=4000"
+  - "algo=qd_pg env=ant_uni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me env=ant_uni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me_gecco env=ant_uni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_ai env=ant_uni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_actor env=ant_uni seed=$RANDOM num_iterations=4000"
+
+  # ant_omni
+  - "algo=me env=ant_omni seed=$RANDOM num_iterations=4000"
+  - "algo=me_es env=ant_omni seed=$RANDOM num_iterations=4000 batch_size=1"
+  - "algo=pga_me env=ant_omni seed=$RANDOM num_iterations=4000"
+  - "algo=qd_pg env=ant_omni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me env=ant_omni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me_gecco env=ant_omni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_ai env=ant_omni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_actor env=ant_omni seed=$RANDOM num_iterations=4000"
+
+  # anttrap_omni
+  - "algo=me env=anttrap_omni seed=$RANDOM num_iterations=4000"
+  - "algo=me_es env=anttrap_omni seed=$RANDOM num_iterations=4000 batch_size=1"
+  - "algo=pga_me env=anttrap_omni seed=$RANDOM num_iterations=4000"
+  - "algo=qd_pg env=anttrap_omni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me env=anttrap_omni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me_gecco env=anttrap_omni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_ai env=anttrap_omni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_actor env=anttrap_omni seed=$RANDOM num_iterations=4000"
+  
+  # humanoid_uni
+  - "algo=me env=humanoid_uni seed=$RANDOM num_iterations=4000"
+  - "algo=me_es env=humanoid_uni seed=$RANDOM num_iterations=4000 batch_size=1"
+  - "algo=pga_me env=humanoid_uni seed=$RANDOM num_iterations=4000"
+  - "algo=qd_pg env=humanoid_uni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me env=humanoid_uni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me_gecco env=humanoid_uni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_ai env=humanoid_uni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_actor env=humanoid_uni seed=$RANDOM num_iterations=4000"
+
+  # humanoid_omni
+  - "algo=me env=humanoid_omni seed=$RANDOM num_iterations=4000"
+  - "algo=me_es env=humanoid_omni seed=$RANDOM num_iterations=4000 batch_size=1"
+  - "algo=pga_me env=humanoid_omni seed=$RANDOM num_iterations=4000"
+  - "algo=qd_pg env=humanoid_omni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me env=humanoid_omni seed=$RANDOM num_iterations=4000"
+  - "algo=dcg_me_gecco env=humanoid_omni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_ai env=humanoid_omni seed=$RANDOM num_iterations=4000"
+  - "algo=ablation_actor env=humanoid_omni seed=$RANDOM num_iterations=4000"

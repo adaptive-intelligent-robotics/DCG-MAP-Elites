@@ -136,14 +136,13 @@ class QDTransition(Transition):
     next_state_desc: StateDescriptor
 
     desc: Descriptor
-    input_desc: Descriptor
+    desc_prime: Descriptor
 
     @property
     def state_descriptor_dim(self) -> int:
         """
         Returns:
             the dimension of the state descriptors.
-
         """
         return self.state_desc.shape[-1]  # type: ignore
 
@@ -152,7 +151,6 @@ class QDTransition(Transition):
         """
         Returns:
             the dimension of the descriptors.
-
         """
         return self.state_desc.shape[-1]  # type: ignore
 
@@ -161,7 +159,6 @@ class QDTransition(Transition):
         """
         Returns:
             the dimension of the transition once flattened.
-
         """
         flatten_dim = (
             2 * self.observation_dim
@@ -188,7 +185,7 @@ class QDTransition(Transition):
                 self.state_desc,
                 self.next_state_desc,
                 self.desc,
-                self.input_desc,
+                self.desc_prime,
             ],
             axis=-1,
         )
@@ -202,13 +199,11 @@ class QDTransition(Transition):
     ) -> QDTransition:
         """
         Creates a transition from a flattened transition in a jnp.ndarray.
-
         Args:
             flattened_transition: flattened transition in a jnp.ndarray of shape
                 (batch_size, flatten_dim)
             transition: a transition object (might be a dummy one) to
                 get the dimensions right
-
         Returns:
             a Transition object
         """
@@ -245,7 +240,7 @@ class QDTransition(Transition):
                 2 * obs_dim + 3 + action_dim + 2 * state_desc_dim + desc_dim
             ),
         ]
-        input_desc = flattened_transition[
+        desc_prime = flattened_transition[
             :,
             (2 * obs_dim + 3 + action_dim + 2 * state_desc_dim + desc_dim) : (
                 2 * obs_dim + 3 + action_dim + 2 * state_desc_dim + 2 * desc_dim
@@ -261,21 +256,18 @@ class QDTransition(Transition):
             state_desc=state_desc,
             next_state_desc=next_state_desc,
             desc=desc,
-            input_desc=input_desc,
+            desc_prime=desc_prime,
         )
 
     @classmethod
     def init_dummy(  # type: ignore
-        cls, observation_dim: int, action_dim: int, descriptor_dim: int
-    ) -> QDTransition:
+        cls, observation_dim: int, action_dim: int, descriptor_dim: int) -> QDTransition:
         """
         Initialize a dummy transition that then can be passed to constructors to get
         all shapes right.
-
         Args:
             observation_dim: observation dimension
             action_dim: action dimension
-
         Returns:
             a dummy transition
         """
@@ -289,7 +281,7 @@ class QDTransition(Transition):
             state_desc=jnp.zeros(shape=(1, descriptor_dim)),
             next_state_desc=jnp.zeros(shape=(1, descriptor_dim)),
             desc=jnp.zeros(shape=(1, descriptor_dim)),
-            input_desc=jnp.zeros(shape=(1, descriptor_dim)),
+            desc_prime=jnp.zeros(shape=(1, descriptor_dim)),
         )
         return dummy_transition
 

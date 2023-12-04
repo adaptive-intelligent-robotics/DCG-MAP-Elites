@@ -18,9 +18,11 @@ def dummy_extra_scores_extractor(
     the same policy in the environment.
     This Dummy implementation just return the full concatenate extra_score
     of all samples without extra computation.
+
     Args:
         extra_scores: extra scores of the samples
         num_samples: the number of samples used
+
     Returns:
         the new extra scores after extraction
     """
@@ -49,6 +51,7 @@ def sampling(
 ) -> Tuple[Fitness, Descriptor, ExtraScores, RNGKey]:
     """
     Wrap scoring_function to perform sampling.
+
     Args:
         policies_params: policies to evaluate
         random_key
@@ -56,6 +59,7 @@ def sampling(
         num_samples
         extra_scores_extractor: function to extract the extra_scores from
             multiple samples of the same policy.
+
     Returns:
         The average fitness and descriptor of the individuals
         The extra_score extract from samples with extra_scores_extractor

@@ -94,9 +94,8 @@ def default_qd_metrics(repertoire: MapElitesRepertoire, qd_offset: float) -> Met
     qd_score += qd_offset * jnp.sum(1.0 - repertoire_empty)
     coverage = 100 * jnp.mean(1.0 - repertoire_empty)
     max_fitness = jnp.max(repertoire.fitnesses)
-    mean_fitness = jnp.mean(repertoire.fitnesses, where=~repertoire_empty)
 
-    return {"qd_score": qd_score, "max_fitness": max_fitness, "mean_fitness": mean_fitness, "coverage": coverage}
+    return {"qd_score": qd_score, "max_fitness": max_fitness, "coverage": coverage}
 
 
 def default_moqd_metrics(
